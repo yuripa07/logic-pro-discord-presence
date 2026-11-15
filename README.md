@@ -25,15 +25,16 @@ macOS, Logic Pro (including Creator Studio), Discord desktop, and Apple Command 
 git clone https://github.com/yuripa07/logic-pro-discord-presence.git
 cd logic-pro-discord-presence
 ./install.sh
-./configure.command
 ```
 
-1. Create an application named **Logic Pro** in the [Discord Developer Portal](https://discord.com/developers/applications). Copy its **Application ID** into the configuration prompt. Do not provide a bot token.
-2. Set an **App Icon** under General Information if desired. This is separate from the large image sent by this integration.
+1. A shared Application ID is included. No Discord developer setup or bot token is needed. To use your own application instead, run `./configure.command`.
+2. If using your own application, optionally configure its App Icon under General Information.
 3. In macOS **System Settings → Privacy & Security → Accessibility**, add and enable `~/Library/Application Support/LogicDiscordPresence/logic-probe`. Use Command+Shift+G in the file picker to enter the path. Recompiling/updating the helper may require removing and re-adding its permission.
 4. Open Discord and Logic, and enable activity sharing in Discord.
 
-Installer preserves existing configuration. Running it on an existing installation recompiles the helper, restarts the service and resets the session timer. No administrator privileges are needed.
+Installer preserves existing configuration. Running it on an existing installation recompiles the helper, restarts the service; the default Logic timer retains the actual process start time. No administrator privileges are needed.
+
+You can also double-click `install.command` in the downloaded source folder. Apple Command Line Tools are still required to compile the helper.
 
 ## Settings
 
@@ -42,13 +43,13 @@ Run `./settings.command`. This opens a temporary local web interface on `127.0.0
 ## Behavior and limitations
 
 - Samples Logic approximately every two seconds; sends changed presence and refreshes unchanged presence approximately every 30 seconds. Discord may delay visual updates independently.
-- Timer is elapsed time since the service observed the session, not active editing time. Restarting the service resets it; project changes reset the project timer.
+- By default, the timer starts at the actual launch time of the Logic process and ends when Logic quits. Saving, switching windows/projects, reconnecting Discord and restarting this helper do not reset it. It is not active editing time. The optional project timer still follows observed project/window changes.
 - Pause and Stop cannot reliably be distinguished; inactive playback is shown as Stopped.
 - Track count reflects accessible track headers and may omit hidden, collapsed, filtered or virtualized tracks. It is labeled **visible tracks**.
 - Missing permissions or unavailable controls result in generic text, not inferred recording/playback state.
 - Project names are shared on your Discord profile unless hidden or incognito is enabled. The local status file also contains the most recently published payload.
 - The service does not control Discord's recent-activity history or replace Discord's built-in detected-application catalog. Disabling built-in detection may affect history.
-- Official Logic icon and ReaCord transport badges are loaded by Discord from public HTTPS URLs. Their availability is external to this project.
+- The shared application uses Discord-hosted assets (logic, play, record, stop). Custom Application IDs fall back to public HTTPS artwork unless a custom logo is configured.
 - No audio, keystrokes, project contents or recordings are captured. The helper only reads Accessibility attributes; it does not control transport.
 
 ## Troubleshooting
@@ -77,4 +78,4 @@ python3 -m unittest discover -s tests -v
 
 ## Credits
 
-Transport badge artwork is referenced from **ReaCord**, by BartekStaniak, under its MIT license; see `ReaCord-LICENSE.txt`. The Logic Pro icon belongs to Apple and is referenced from Apple's public support assets. This project is not affiliated with Apple, Discord or ReaCord.
+Transport badge artwork is referenced from **ReaCord**, by BartekStaniak, under its MIT license; see `ReaCord-LICENSE.txt`. The Logic Pro icon belongs to Apple. The shared app uses artwork from Apple’s App Store; custom applications use Apple’s public support image. This project is not affiliated with Apple, Discord or ReaCord.

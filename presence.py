@@ -32,12 +32,33 @@ def connect(appid):
                 return s
             except (OSError,ValueError,ConnectionError): s.close()
     raise ConnectionError('Discord IPC unavailable or application ID rejected')
-DEFAULTS = {'project_mode':'name','timer':'project','transport':'tempo','incognito':False,'show_tracks':True,'enabled':True,'logo':'https://cdsassets.apple.com/live/7WUAS350/images/pro-apps/creator-studio-logic-pro-12-4-app-icon.png'}
+DEFAULT_APPLICATION_ID = '1568970756501676153'
+
+def process_start(pid):
+    # macOS process start time is independent of the current document or window.
+    raw = subprocess.check_output(['/bin/ps','-p',str(int(pid)),'-o','lstart='], env={**os.environ,'LC_ALL':'C'}, timeout=3).decode().strip()
+    return int(time.mktime(time.strptime(raw, '%a %b %d %H:%M:%S %Y')))
+
+class AppSessionClock:
+    def __init__(self): self.pid=None; self.start=None
+    def update(self, probe):
+        if not probe.get('running'):
+            self.pid=None; self.start=None; return None
+        pid=probe.get('pid')
+        if pid != self.pid: self.pid=pid; self.start=None
+        try: self.start=process_start(pid)
+        except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+            if self.start is None: self.start=int(time.time())
+        return self.start
+
+DEFAULTS = {'project_mode':'name','timer':'uptime','transport':'tempo','incognito':False,'show_tracks':True,'enabled':True,'logo':'https://cdsassets.apple.com/live/7WUAS350/images/pro-apps/creator-studio-logic-pro-12-4-app-icon.png'}
 def activity(probe,start,cfg=None):
     cfg={**DEFAULTS,**(cfg or {})}
     if not probe.get('running') or not cfg['enabled']: return None
     inc=cfg['incognito']; mode=cfg['project_mode']
-    result={'assets':{'large_image':cfg['logo'],'large_text':'Logic Pro'}}
+    shared = str(cfg.get('application_id') or DEFAULT_APPLICATION_ID) == DEFAULT_APPLICATION_ID
+    logo = 'logic' if shared and cfg['logo']==DEFAULTS['logo'] else cfg['logo']
+    result={'assets':{'large_image':logo,'large_text':'Logic Pro'}}
     project=probe.get('project','Working on a project')
     if inc or mode=='generic': result['details']='Working on a project'
     elif mode!='hidden': result['details']=(probe.get('filename',project) if mode=='filename' else project)[:120]
@@ -50,18 +71,17 @@ def activity(probe,start,cfg=None):
     if cfg['timer']!='off' and start: result['timestamps']={'start':start}
     badge={'Playing':'play','Recording':'record','Paused':'pause','Stopped':'stop'}.get(probe.get('transport'))
     if badge and not inc and cfg['transport']!='hidden':
-        result['assets'].update(small_image='https://raw.githubusercontent.com/BartekStaniak/ReaCord/main/assets/discord/'+badge+'.png',small_text=probe['transport'])
+        result['assets'].update(small_image=badge if shared and badge in ['play','record','stop'] else 'https://raw.githubusercontent.com/BartekStaniak/ReaCord/main/assets/discord/'+badge+'.png',small_text=probe['transport'])
     return result
 def run():
-    s=None; client=None; session=None; started=None; uptime=None; last_payload=None; last_sent=0
+    s=None; client=None; session=None; started=None; uptime=None; last_payload=None; last_sent=0; app_clock=AppSessionClock()
     while True:
         status={}
         try:
-            cfg=json.loads((BASE/'config.json').read_text()); appid=str(cfg.get('application_id','')).strip()
+            cfg=json.loads((BASE/'config.json').read_text()); appid=str(cfg.get('application_id') or DEFAULT_APPLICATION_ID).strip()
             cfg={**DEFAULTS,**cfg}
             p=json.loads(subprocess.check_output([str(BASE/'logic-probe')],timeout=8))
-            if p.get('running') and uptime is None: uptime=int(time.time())
-            if not p.get('running'): uptime=None
+            uptime=app_clock.update(p)
             key=(p.get('pid'),p.get('project')) if p.get('running') else None
             if key!=session: session=key; started=int(time.time()) if key else None
             status={'logic_running':p.get('running'),'accessibility':p.get('accessible'),'application_id_configured':bool(appid),'updated':int(time.time())}

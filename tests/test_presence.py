@@ -6,7 +6,10 @@ class PresenceTests(unittest.TestCase):
   a=presence.activity(self.p,123)
   self.assertEqual(a['state'],'Recording · 120 BPM · 1 visible track')
   self.assertEqual(a['timestamps'],{'start':123})
-  self.assertTrue(a['assets']['small_image'].endswith('/record.png'))
+  self.assertEqual(a['assets']['small_image'],'record')
+  self.assertEqual(a['assets']['large_image'],'logic')
+  custom=presence.activity(self.p,123,{'application_id':'123456789012345678'})
+  self.assertTrue(custom['assets']['small_image'].endswith('/record.png'))
  def test_privacy(self):
   a=presence.activity(self.p,123,{'incognito':True})
   self.assertNotIn('Example',str(a));self.assertEqual(a['state'],'Incognito')
@@ -32,3 +35,21 @@ class PresenceTests(unittest.TestCase):
    op,n=struct.unpack('<II',presence.exact(b,8));self.assertEqual(op,4)
    self.assertEqual(json.loads(presence.exact(b,n)),{'ping':1})
   finally:a.close();b.close()
+
+class ClockTests(unittest.TestCase):
+ def test_windows_projects_and_restart_keep_process_start(self):
+  from unittest.mock import patch
+  with patch('presence.process_start',return_value=100):
+   c=presence.AppSessionClock()
+   for name in ['Song','Save','Export',None,'Other Song']:
+    self.assertEqual(c.update({'running':True,'pid':10,'project':name}),100)
+   self.assertEqual(presence.AppSessionClock().update({'running':True,'pid':10}),100)
+   self.assertIsNone(c.update({'running':False}))
+  with patch('presence.process_start',return_value=200):
+   self.assertEqual(c.update({'running':True,'pid':11}),200)
+ def test_transient_lookup_failure_keeps_start(self):
+  from unittest.mock import patch
+  c=presence.AppSessionClock()
+  with patch('presence.process_start',return_value=100):c.update({'running':True,'pid':10})
+  with patch('presence.process_start',side_effect=ValueError):
+   self.assertEqual(c.update({'running':True,'pid':10,'project':'Save'}),100)

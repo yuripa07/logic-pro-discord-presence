@@ -14,7 +14,7 @@ cp presence.py settings.py "$base/"
 import json,sys,pathlib,plistlib,os,subprocess
 base=pathlib.Path(sys.argv[1])
 config=base/'config.json'
-if not config.exists(): config.write_text(json.dumps({'application_id':''})+'\n')
+if not config.exists(): config.write_text(json.dumps({'application_id':'1568970756501676153','timer':'uptime'})+'\n')
 agent=pathlib.Path.home()/'Library/LaunchAgents/local.logic-discord-presence.plist'
 data={'Label':'local.logic-discord-presence','ProgramArguments':['/usr/bin/python3',str(base/'presence.py')],'RunAtLoad':True,'KeepAlive':True,'ThrottleInterval':30,'ProcessType':'Background','StandardOutPath':str(base/'service.log'),'StandardErrorPath':str(base/'error.log')}
 agent.write_bytes(plistlib.dumps(data))
@@ -22,4 +22,4 @@ domain='gui/'+str(os.getuid())
 subprocess.run(['launchctl','bootout',domain,str(agent)],capture_output=True)
 subprocess.run(['launchctl','bootstrap',domain,str(agent)],check=True)
 PY
-printf 'Installed. Run ./configure.command to set your Discord Application ID.\nAuthorize logic-probe in System Settings > Privacy & Security > Accessibility.\n'
+printf 'Installed with a shared Application ID. Optional custom ID: ./configure.command.\nAuthorize logic-probe in System Settings > Privacy & Security > Accessibility.\n'
